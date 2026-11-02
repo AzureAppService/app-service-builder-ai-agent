@@ -30,7 +30,7 @@ Builder hosts this ordinary Node.js web application. It does **not** provision o
 Clone this repository (or your fork) and work from its root; no parent repository, source subdirectory, or download ZIP is needed:
 
 ```sh
-git clone https://github.com/Azure-Samples/app-service-builder-ai-agent.git
+git clone https://github.com/AzureAppService/app-service-builder-ai-agent.git
 cd app-service-builder-ai-agent
 npm ci --ignore-scripts
 npm test
