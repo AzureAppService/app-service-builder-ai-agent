@@ -2,6 +2,12 @@
 
 A standalone Node.js sample that hosts a bounded, single-turn AI assistant HTTP API on App Service Builder. Each authenticated `POST /agent` makes one text-generation request to a separately configured OpenAI or Azure OpenAI Responses API.
 
+## Preview
+
+![AI assistant static showcase with a request example, setup links, and single-turn API boundaries](https://github.com/user-attachments/assets/41606df5-4329-4355-ba21-903e2861f8f1)
+
+The screenshot shows the static `/demo` showcase, not a live chat. The API root `/` remains a plain-text sample identifier.
+
 **App Service Builder is in Private Preview.** This sample is for development and testing, not production, and has not been live-qualified against a preview deployment. You need approved preview access and a supported target supplied by your preview onboarding; no region or model availability is guaranteed. Start with the [Host an AI agent guide](https://builderapps.azure.com/docs/guides/host-ai-agent/).
 
 Builder hosts this ordinary Node.js web application. It does **not** provision or host the model, provide Builder-managed agent orchestration, or run an autonomous agent loop. There are no tools, side effects, conversation history, retries, or fabricated model-success responses.
