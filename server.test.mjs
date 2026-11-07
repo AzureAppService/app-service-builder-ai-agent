@@ -5,6 +5,12 @@ import { createApp } from './server.mjs';
 import { request as httpRequest } from 'node:http';
 import { readFileSync } from 'node:fs';
 
+test('README documentation links use the canonical docs host', () => {
+  const readme = readFileSync(new URL('./README.md', import.meta.url), 'utf8');
+  assert.match(readme, /https:\/\/builder\.appservice\.azure\.com\/docs\//);
+  assert.doesNotMatch(readme, /https:\/\/builderapps\.azure\.com\/docs(?:\/|\b)/);
+});
+
 const env = {
   APP_API_TOKEN: 'local-test-token-'.repeat(3), OPENAI_API_KEY: 'provider-test-secret',
   MODEL_SERVICE: 'openai', OPENAI_MODEL: 'owner-selected-model',

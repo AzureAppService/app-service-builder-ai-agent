@@ -8,7 +8,7 @@ A standalone Node.js sample that hosts a bounded, single-turn AI assistant HTTP 
 
 The screenshot shows the static showcase served directly at `/`, not a live chat.
 
-**App Service Builder is in Private Preview.** This sample is for development and testing, not production, and has not been live-qualified against a preview deployment. You need approved preview access and a supported target supplied by your preview onboarding; no region or model availability is guaranteed. Start with the [Host an AI agent guide](https://builderapps.azure.com/docs/guides/host-ai-agent/).
+**App Service Builder is in Private Preview.** This sample is for development and testing, not production, and has not been live-qualified against a preview deployment. You need approved preview access and a supported target supplied by your preview onboarding; no region or model availability is guaranteed. Start with the [Host an AI agent guide](https://builder.appservice.azure.com/docs/guides/host-ai-agent/).
 
 Builder hosts this ordinary Node.js web application. It does **not** provision or host the model, provide Builder-managed agent orchestration, or run an autonomous agent loop. There are no tools, side effects, conversation history, retries, or fabricated model-success responses.
 
@@ -125,7 +125,7 @@ Provider errors are sanitized. Provider keys, app tokens, prompts, and upstream 
 
 ## Deploy with App Service Builder
 
-Follow the [Host an AI agent guide](https://builderapps.azure.com/docs/guides/host-ai-agent/) with your approved Private Preview onboarding. If the Portal or documentation endpoint is unavailable or presents a certificate warning, stop and contact your preview support channel; do not bypass the warning. This repository does not provide a public CLI installer or guarantee a supported region.
+Follow the [Host an AI agent guide](https://builder.appservice.azure.com/docs/guides/host-ai-agent/) with your approved Private Preview onboarding. If the Portal or documentation endpoint is unavailable or presents a certificate warning, stop and contact your preview support channel; do not bypass the warning. This repository does not provide a public CLI installer or guarantee a supported region.
 
 1. **Fork** this repository into your own GitHub account or organization. Use a repository you are authorized to deploy, and ensure the sample files are committed on its `main` branch.
 2. In the Builder Portal, authorize GitHub access only to the repository you need. Create an app and select **your own repository**, branch **`main`**, and the **repository root** as the source. `builder.yaml` declares a Node.js 24 web component, startup command `node server.mjs`, and `/health` probe. It uses Builder's single-component defaults for the repository-root mount, port `8080`, and an exact health-check success status of `200`.
@@ -150,7 +150,7 @@ In the Portal, delete **only the sample app** when finished and verify deletion.
 
 ## Resources
 
-- [Host an AI agent on App Service Builder](https://builderapps.azure.com/docs/guides/host-ai-agent/) (Private Preview).
+- [Host an AI agent on App Service Builder](https://builder.appservice.azure.com/docs/guides/host-ai-agent/) (Private Preview).
 - [OpenAI Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create) and [text generation](https://developers.openai.com/api/docs/guides/text).
 - [Azure OpenAI Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) and [v1 REST contract](https://learn.microsoft.com/rest/api/microsoft-foundry/azureopenai/responses).
 - [Microsoft Open Source Code of Conduct](.github/CODE_OF_CONDUCT.md).
