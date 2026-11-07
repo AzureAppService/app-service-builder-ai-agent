@@ -6,7 +6,7 @@ A standalone Node.js sample that hosts a bounded, single-turn AI assistant HTTP 
 
 ![AI assistant static showcase with a request example, setup links, and single-turn API boundaries](https://github.com/user-attachments/assets/41606df5-4329-4355-ba21-903e2861f8f1)
 
-The screenshot shows the static `/demo` showcase, not a live chat. The API root `/` remains a plain-text sample identifier.
+The screenshot shows the static showcase served directly at `/`, not a live chat.
 
 **App Service Builder is in Private Preview.** This sample is for development and testing, not production, and has not been live-qualified against a preview deployment. You need approved preview access and a supported target supplied by your preview onboarding; no region or model availability is guaranteed. Start with the [Host an AI agent guide](https://builderapps.azure.com/docs/guides/host-ai-agent/).
 
@@ -15,10 +15,10 @@ Builder hosts this ordinary Node.js web application. It does **not** provision o
 ## Features
 
 - Dependency-free Node.js HTTP server and a repository-root `builder.yaml`.
-- Public liveness and sample-identifier endpoints; authenticated, bounded assistant requests.
+- Public liveness and HTML home page; authenticated, bounded assistant requests.
 - Explicit OpenAI or Azure OpenAI configuration with sanitized failures and response limits.
 - Local HTTP tests with mocked providers: no model account, credentials, or paid model calls required.
-- A responsive, static showcase at `/demo` with a request example and setup links. It never collects credentials, calls a model, or displays fabricated replies.
+- A responsive, static home page at `/` with a request example and setup links. It never collects credentials, calls a model, or displays fabricated replies.
 
 ## Getting Started
 
@@ -55,16 +55,16 @@ env -u MODEL_SERVICE -u OPENAI_API_KEY -u OPENAI_MODEL \
   -u PUBLIC_ORIGIN npm start
 ```
 
-Keep that terminal open. In another terminal, health and the sample identifier work without credentials:
+Keep that terminal open. In another terminal, health and the HTML home page work without credentials:
 
 ```sh
 curl --fail-with-body http://127.0.0.1:8080/health
 # OK
 curl --fail-with-body http://127.0.0.1:8080/
-# App Service Builder / agent-web
+# HTML showcase
 ```
 
-For the visual template showcase, open `http://127.0.0.1:8080/demo` in a browser. This is a static introduction, not a chat client or configuration-status check. It follows the device's light/dark preference; use `/demo?scoutTheme=light` for a consistent light thumbnail or `scoutTheme=dark` for dark. All styling and scripts are local, with no external assets or runtime dependencies. The existing `/` identifier and API routes are unchanged.
+For the visual template showcase, open `http://127.0.0.1:8080/` in a browser. This is a static introduction, not a chat client or configuration-status check. It follows the device's light/dark preference; use `/?scoutTheme=light` for a consistent light thumbnail or `/?scoutTheme=dark` for dark. All styling and scripts are in the local `index.html`, with no external assets or runtime dependencies. The home page is served directly without a redirect; the API and health routes are unchanged.
 
 An unauthenticated request returns `401` with `{"error":"unauthorized"}`:
 
@@ -85,7 +85,7 @@ curl -i http://127.0.0.1:8080/agent \
 
 Stop with Ctrl+C. SIGINT/SIGTERM closes the server. If the server's `APP_API_TOKEN` is absent or shorter than 32 characters, `POST /agent` instead returns `503` with `{"error":"app_auth_not_configured"}`. `/health` is liveness only: `200 OK` does not prove authentication, provider configuration, or model access.
 
-## Demo: opt-in real provider request
+## Opt-in real provider request
 
 Only perform this step after authorizing the service, charges, and prompt data handling. Inject the required provider key into the **server process environment** using your approved secret manager; the sample does not automatically load `.env` files. Never put a provider key in a browser, client request body, URL, Git repository, build output, or shell history.
 
@@ -113,8 +113,7 @@ The answer is nondeterministic, not the literal placeholder or a promised senten
 | `APP_API_TOKEN` | Required for `POST /agent`; at least 32 characters; exact bearer comparison. Separate from the provider key. |
 | `PUBLIC_ORIGIN` | Optional exact HTTPS origin, without trailing slash, accepted when a caller supplies `Origin`. Local origins `http://localhost:8080` and `http://127.0.0.1:8080` are also accepted. No browser CORS access is granted. |
 | `GET /health` | Public `200` with `OK`; liveness only, no provider call. |
-| `GET /` | Public `200` with `App Service Builder / agent-web`. |
-| `GET /demo` | Public static HTML showcase; no credentials, provider requests, or simulated assistant output. |
+| `GET /` | Public `200` HTML showcase, served directly without a redirect; no credentials, provider requests, or simulated assistant output. Query strings leave the HTML response unchanged. |
 | `POST /agent` | JSON containing only `{"message":"..."}`; nonblank string up to 2000 UTF-16 code units; body capped at 8192 bytes. |
 | Provider request | One call per accepted turn; 512 output tokens, `store:false`, `stream:false`, `tools:[]`. No retries or conversation store. |
 | Response | Completed assistant text only; up to 4000 UTF-16 code units; upstream body capped at 65,536 bytes. |

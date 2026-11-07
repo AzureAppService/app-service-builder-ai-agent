@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const MAX_BODY = 8192;
 const MAX_OUTPUT = 4000;
-const demo = readFileSync(new URL('./demo.html', import.meta.url));
+const home = readFileSync(new URL('./index.html', import.meta.url));
 
 /** Bound bytes before parsing, including chunked requests without Content-Length. */
 async function readBounded(stream, limit) {
@@ -66,11 +66,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end('OK\n');
     }
-    if (req.method === 'GET' && req.url === '/') {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      return res.end('App Service Builder / agent-web\n');
-    }
-    if (req.method === 'GET' && req.url.split('?')[0] === '/demo') {
+    if (req.method === 'GET' && req.url.split('?')[0] === '/') {
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
@@ -78,7 +74,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
         'Referrer-Policy': 'no-referrer',
         'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       });
-      return res.end(demo);
+      return res.end(home);
     }
     if (req.url !== '/agent') return send(res, 404, { error: 'not_found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
