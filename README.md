@@ -160,3 +160,5 @@ In the Portal, delete **only the sample app** when finished and verify deletion.
 - [Contributing](CONTRIBUTING.md), including the Contributor License Agreement.
 - [MIT license](LICENSE.md).
 - Report security vulnerabilities privately through the [Microsoft Security Response Center](https://msrc.microsoft.com/report), not in a public issue.
+
+The product mark uses the supplied App Service Builder asset in `assets/AppServiceBuilder.svg`. Its SVG is inlined in the root page to preserve the existing routes and security policy. Keep the inline copy and asset in sync when updating the logo.
