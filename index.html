@@ -4,142 +4,112 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="A bounded, single-turn AI assistant API sample for App Service Builder.">
+  <link rel="icon" href="data:,">
   <title>Assistant studio | App Service Builder</title>
-  <script>
-    (() => {
-      const param = new URLSearchParams(window.location.search).get("scoutTheme");
-      const theme =
-        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-      document.documentElement.setAttribute("data-theme", theme);
-    })();
-  </script>
   <style>
-    :root {
-      color-scheme: light;
-      --cp-bg: #f7f4ef;
-      --cp-bg-elevated: #fcfbf8;
-      --cp-surface: #ffffff;
-      --cp-surface-soft: #f5f5f5;
-      --cp-border: #dedede;
-      --cp-border-strong: #919191;
-      --cp-text: #242424;
-      --cp-text-muted: #5c5c5c;
-      --cp-text-soft: #6f6f6f;
-      --cp-accent: #b11f4b;
-      --cp-accent-hover: #9a1a41;
-      --cp-accent-soft: rgba(177, 31, 75, 0.08);
-      --cp-accent-fg: #ffffff;
-      --cp-success: #16a34a;
-      --cp-danger: #dc2626;
-      --cp-warning: #f59e0b;
-      --cp-link: #0078d4;
-      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-      --cp-overlay: rgba(255, 255, 255, 0.8);
-      --cp-panel: rgba(255, 255, 255, 0.86);
-      --cp-panel-strong: rgba(255, 255, 255, 0.96);
-      --cp-sheen: rgba(255, 255, 255, 0.55);
-      --cp-highlight: rgba(177, 31, 75, 0.12);
+    :root { color-scheme: light; --ink:#23314c; --muted:#5d6d87; --line:#e4e8f2; --accent:#6250d1; --soft:#f1effb; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); font:15px/1.7 "Segoe UI Variable","Segoe UI",Arial,sans-serif; background:radial-gradient(ellipse at 0 10%,#dceaff,transparent 60%),radial-gradient(ellipse at 100% 85%,#e8e0fa,transparent 60%),#eff3fc; }
+    a { color:inherit; text-underline-offset:4px; }
+    a:hover { color:var(--accent); }
+    a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #7660d0; outline-offset:4px; }
+    button,a,summary { touch-action:manipulation; }
+    button { font:inherit; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    [hidden] { display:none!important; }
+    .skip,.skip-link { position:absolute; top:-90px; left:20px; background:#fff; padding:12px; z-index:3; }
+    .skip:focus,.skip-link:focus { top:10px; }
+    .brand { display:flex; align-items:center; gap:11px; font-size:17px; font-weight:650; letter-spacing:-.02em; text-decoration:none; }
+    .brand-logo { display:block; width:30px; height:30px; flex:none; }
+    .ecosystem-logo { display:block; width:64px; height:64px; flex:none; }
+    nav { display:flex; align-items:center; gap:22px; font-size:12px; color:#546581; }
+    nav a { text-decoration:none; }
+    nav a:hover { text-decoration:underline; }
+    h1,h2 { text-wrap:balance; }
+    h1 { letter-spacing:-.04em; line-height:1.08; font-weight:650; }
+    h2 { letter-spacing:-.02em; line-height:1.35; }
+    code,pre { font-family:Consolas,monospace; overflow-wrap:anywhere; }
+    pre { white-space:pre-wrap; margin:0; font-size:12px; line-height:1.8; }
+    details { font-size:12px; color:var(--muted); line-height:1.8; }
+    summary { cursor:pointer; color:#435676; font-weight:600; }
+    details p { max-width:76ch; }
+    footer { display:flex; justify-content:space-between; gap:22px; color:var(--muted); font-size:11px; line-height:1.8; }
+    .brand-notices { margin:0; padding:18px 0 0; border-top:1px solid var(--line); }
+    .brand-notices summary { font-size:10px; font-weight:400; }
+    .brand-notices p { font-size:10px; }
+    .button,.primary { display:inline-flex; align-items:center; justify-content:center; gap:14px; min-height:44px; padding:12px 20px; border:0; border-radius:10px; background:var(--accent); color:#fff; font-size:13px; font-weight:600; text-decoration:none; box-shadow:0 5px 12px #47369c1a; }
+    .button:hover,.primary:hover { background:#5140b6; color:#fff; }
+    #health-status { font-size:11px; line-height:1.8; min-height:36px; color:var(--muted); overflow-wrap:anywhere; }
+    @media(max-width:600px) {
+      .brand { font-size:16px; }
+      nav { width:100%; justify-content:space-between; flex-wrap:wrap; gap:10px 14px; font-size:11px; }
+      footer { flex-direction:column; gap:6px; }
     }
-    html[data-theme="dark"] {
-      color-scheme: dark;
-      --cp-bg: #3d3b3a;
-      --cp-bg-elevated: #343231;
-      --cp-surface: #292929;
-      --cp-surface-soft: #2e2e2e;
-      --cp-border: #474747;
-      --cp-border-strong: #5f5f5f;
-      --cp-text: #dedede;
-      --cp-text-muted: #919191;
-      --cp-text-soft: #b0b0b0;
-      --cp-accent: #fd8ea1;
-      --cp-accent-hover: #fb7b91;
-      --cp-accent-soft: rgba(253, 142, 161, 0.14);
-      --cp-accent-fg: #1a1a1a;
-      --cp-success: #4ade80;
-      --cp-danger: #f87171;
-      --cp-warning: #fbbf24;
-      --cp-link: #4da6ff;
-      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
-      --cp-overlay: rgba(41, 41, 41, 0.88);
-      --cp-panel: rgba(41, 41, 41, 0.72);
-      --cp-panel-strong: rgba(41, 41, 41, 0.96);
-      --cp-sheen: rgba(255, 255, 255, 0.04);
-      --cp-highlight: rgba(253, 142, 161, 0.12);
+    @media(prefers-reduced-motion:no-preference) { .button,.primary { transition:background .15s ease-out; } }
+
+    .shell { max-width:1120px; margin:32px auto; padding:0 35px; background:#fff; border:1px solid #ffffffbd; border-radius:24px; box-shadow:0 22px 65px #3b487515; }
+    header { padding:27px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; border-bottom:1px solid var(--line); }
+    main { padding:35px 0 25px; }
+    .hero { display:grid; grid-template-columns:.9fr 1.1fr; align-items:center; gap:42px; }
+    .identity { display:flex; align-items:center; gap:16px; margin-bottom:25px; color:#527c67; font-size:12px; font-weight:600; }
+    .identity svg { width:122px; height:40px; }
+    h1 { font-size:56px; margin:0 0 22px; }
+    h1 em { font-style:normal; color:#625291; }
+    .intro { max-width:38ch; color:var(--muted); font-size:14px; line-height:1.8; margin:0; }
+    .actions { display:flex; align-items:center; flex-wrap:wrap; gap:18px; margin-top:26px; font-size:12px; }
+    .note { font-size:11px; line-height:1.8; color:var(--muted); margin:21px 0 0; }
+    .health { margin-top:23px; }
+    .health button, #setup-check { border:1px solid #d2c9ed; border-radius:9px; background:#fff; color:#5947b7; padding:10px 15px; min-height:44px; font-size:12px; font-weight:600; cursor:pointer; }
+    .health button:hover, #setup-check:hover { background:var(--soft); }
+    .setup { margin-top:20px; padding:15px; border:1px solid var(--line); border-radius:10px; background:var(--soft); font-size:12px; line-height:1.8; color:var(--muted); }
+    .setup p { margin:0 0 10px; }
+    .setup a { display:block; margin-bottom:12px; }
+    #health-status { margin:12px 0 0; }
+    .workspace { background:linear-gradient(145deg,#f1f5fe,#f1edf9); border:1px solid #dce3f1; border-radius:17px; overflow:hidden; min-width:0; }
+    .workspace-top { padding:20px 23px; border-bottom:1px solid #dce3f1; display:flex; justify-content:space-between; gap:15px; align-items:center; }
+    .workspace-top strong { font-size:13px; font-weight:600; }
+    .workspace-top span { font-size:10px; color:var(--muted); }
+    .workspace-body { padding:25px; }
+    .request-label { display:flex; justify-content:space-between; gap:15px; color:var(--muted); font-size:11px; }
+    .method { color:#5947b7; font-family:Consolas,monospace; }
+    .prompt { font-size:23px; line-height:1.5; margin:20px 0; letter-spacing:-.02em; }
+    pre { padding:19px; border:1px solid #dce3f1; border-radius:10px; background:#ffffff85; }
+    .json-key { color:#5947b7; }
+    .flow { display:flex; align-items:center; gap:12px; padding:23px 0; color:var(--muted); font-size:10px; }
+    .flow-line { height:1px; flex:1; background:#dce3f1; }
+    .empty { padding-top:21px; border-top:1px solid #dce3f1; }
+    .empty strong { font-size:14px; font-weight:600; }
+    .empty p { font-size:12px; line-height:1.8; color:var(--muted); margin:10px 0 0; }
+    .caption { font-size:10px; color:var(--muted); margin:12px 0 0; }
+    .principles { display:grid; grid-template-columns:repeat(3,1fr); gap:30px; margin-top:32px; padding-top:25px; border-top:1px solid var(--line); }
+    h2 { font-size:15px; font-weight:600; margin:0 0 9px; }
+    .principle p { font-size:12px; line-height:1.8; color:var(--muted); margin:0; }
+    main > details { margin-top:26px; border-top:1px solid var(--line); padding:20px 0 0; }
+    footer { padding:20px 0; border-top:1px solid var(--line); }
+    .brand-notices { padding-bottom:22px; }
+    @media(max-width:1160px) { .shell { margin:25px 20px; } }
+    @media(max-width:850px) { header { flex-direction:column; align-items:flex-start; } .hero { gap:26px; } h1 { font-size:44px; } }
+    @media(max-width:600px) {
+      .shell { margin:18px 15px; padding:0 21px; border-radius:19px; }
+      header { padding:23px 0; gap:17px; }
+      main { padding-top:28px; }
+      .hero { grid-template-columns:1fr; gap:28px; }
+      h1 { font-size:46px; }
+      .identity { margin-bottom:23px; }
+      .principles { grid-template-columns:1fr; gap:20px; }
+      .workspace-top { padding:18px 20px; }
+      .workspace-body { padding:20px; }
+      .workspace-top span { max-width:14ch; }
+      .prompt { font-size:21px; }
+      pre { padding:16px; font-size:11px; }
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--cp-bg); color: var(--cp-text); font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif; }
-    a { color: inherit; text-underline-offset: 4px; }
-    a:focus-visible, summary:focus-visible { outline: 3px solid var(--cp-accent); outline-offset: 5px; }
-    .skip { position: absolute; top: -80px; left: 16px; padding: 12px; background: var(--cp-surface); z-index: 1; }
-    .skip:focus { top: 12px; }
-    .shell { max-width: 1360px; margin: auto; padding: 0 64px; }
-    header { min-height: 100px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--cp-border); }
-    .brand { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
-    .brand-logo { width: 32px; height: 32px; flex-shrink: 0; }
-    main { padding: 76px 0 52px; }
-    .hero { display: grid; grid-template-columns: 1fr 1.05fr; gap: 64px; align-items: center; }
-    h1 { font-size: clamp(48px, 5.2vw, 72px); font-weight: 500; line-height: 1.03; letter-spacing: -.04em; margin: 0 0 24px; }
-    h1 em { font-family: Georgia, "Times New Roman", serif; font-weight: 400; color: var(--cp-accent); }
-    .intro { font-size: 18px; line-height: 1.65; max-width: 400px; color: var(--cp-text-muted); }
-    .actions { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-top: 32px; font-size: 14px; }
-    .primary { display: inline-flex; gap: 24px; align-items: center; background: var(--cp-accent); color: var(--cp-accent-fg); padding: 14px 20px; border-radius: 10px; text-decoration: none; font-weight: 650; }
-    .primary:hover { background: var(--cp-accent-hover); }
-    .note { margin-top: 24px; font-size: 12px; color: var(--cp-text-muted); line-height: 1.6; }
-    .workspace { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 16px; overflow: hidden; }
-    .workspace-top { padding: 20px 24px; border-bottom: 1px solid var(--cp-border); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .workspace-top strong { font-size: 14px; font-weight: 600; }
-    .workspace-top span { font-size: 11px; color: var(--cp-text-muted); }
-    .workspace-body { padding: 28px; }
-    .request-label { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--cp-text-muted); letter-spacing: 1px; text-transform: uppercase; }
-    .method { color: var(--cp-accent); font-weight: 700; letter-spacing: 0; text-transform: none; font-family: Consolas, "Courier New", Courier, monospace; }
-    .prompt { font-size: 23px; line-height: 1.45; letter-spacing: -.5px; margin: 20px 0 24px; }
-    pre { margin: 0; padding: 20px; font: 13px/1.8 Consolas, "Courier New", Courier, monospace; background: var(--cp-bg-elevated); border: 1px solid var(--cp-border); border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .json-key { color: var(--cp-accent); }
-    .flow { display: flex; align-items: center; gap: 12px; padding: 24px 0; font-size: 12px; color: var(--cp-text-muted); }
-    .flow-line { height: 1px; flex: 1; background: var(--cp-border-strong); }
-    .empty { border-top: 1px solid var(--cp-border); padding-top: 24px; }
-    .empty strong { font-size: 14px; font-weight: 600; }
-    .empty p { margin-bottom: 0; font-size: 13px; line-height: 1.7; color: var(--cp-text-muted); }
-    .caption { margin-top: 16px; color: var(--cp-text-muted); font-size: 11px; }
-    .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--cp-border); }
-    .principle { display: flex; gap: 16px; }
-    h2 { font-size: 15px; font-weight: 650; margin: 0 0 8px; }
-    .principle p { font-size: 13px; line-height: 1.65; color: var(--cp-text-muted); margin: 0; }
-    details { margin-top: 40px; border-top: 1px solid var(--cp-border); padding: 20px 0; font-size: 13px; color: var(--cp-text-muted); }
-    summary { cursor: pointer; color: var(--cp-text); width: fit-content; padding: 4px 0; }
-    details p { max-width: 760px; line-height: 1.8; }
-    footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 0; border-top: 1px solid var(--cp-border); font-size: 11px; color: var(--cp-text-muted); }
-    html[data-theme="dark"] :is(.intro, .note, .workspace-top span, .request-label, .flow, .empty p, .caption, .principle p, details, footer) { color: var(--cp-text-soft); }
-    @media (max-width: 900px) {
-      .shell { padding: 0 32px; }
-      .hero { gap: 32px; }
-      h1 { font-size: 52px; }
-      .workspace-body { padding: 24px; }
-      .principles { gap: 24px; }
-    }
-    @media (max-width: 680px) {
-      .shell { padding: 0 24px; }
-      header { min-height: 80px; gap: 12px; }
-      .brand { font-size: 12px; gap: 8px; }
-      .brand-logo { width: 28px; height: 28px; }
-      main { padding-top: 40px; }
-      .hero { grid-template-columns: 1fr; gap: 36px; }
-      h1 { font-size: 56px; margin: 0 0 20px; }
-      .intro { font-size: 17px; }
-      .principles { grid-template-columns: 1fr; margin-top: 40px; gap: 24px; }
-      .workspace-top { padding: 18px 20px; }
-      .workspace-body { padding: 20px; }
-      .prompt { font-size: 21px; }
-      pre { padding: 16px; font-size: 12px; }
-      footer { flex-direction: column; gap: 8px; }
-    }
-  </style>
+</style>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <div class="shell">
     <header>
-      <div class="brand"><svg class="brand-logo" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div class="brand"><svg class="brand-logo" role="img" aria-label="App Service Builder" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_4575_347)">
 <path d="M17.62 8.22L7.62 0.22C7.45 0.08 7.24 0 7 0C6.45 0 6 0.45 6 1C6 1.19 6.05 1.36 6.14 1.51L10.58 9L6.14 16.49C6.05 16.64 6 16.81 6 17C6 17.55 6.45 18 7 18C7.24 18 7.45 17.92 7.62 17.78L12.14 14.17L13.16 13.35L17.62 9.78C17.85 9.6 18 9.32 18 9C18 8.68 17.85 8.4 17.62 8.22Z" fill="url(#paint0_linear_4575_347)"/>
 <path d="M17.62 8.22L7.62 0.22C7.45 0.08 7.24 0 7 0C6.45 0 6 0.45 6 1C6 1.19 6.05 1.36 6.14 1.51L10.58 9L6.14 16.49C6.05 16.64 6 16.81 6 17C6 17.55 6.45 18 7 18C7.24 18 7.45 17.92 7.62 17.78L12.14 14.17L13.16 13.35L17.62 9.78C17.85 9.6 18 9.32 18 9C18 8.68 17.85 8.4 17.62 8.22Z" fill="url(#paint1_radial_4575_347)" fill-opacity="0.5"/>
@@ -188,18 +158,65 @@
 <rect width="18" height="18" fill="white"/>
 </clipPath>
 </defs>
-</svg> App Service Builder <span aria-hidden="true">/</span> AI assistant</div>
+</svg>App Service Builder</div>
+<nav aria-label="Documentation"><a href="https://nodejs.org/docs/latest/api/">Node.js documentation ↗</a><a href="https://platform.openai.com/docs/api-reference/responses">Responses API ↗</a><a href="https://builder.appservice.azure.com/docs/">Builder documentation ↗</a></nav>
     </header>
     <main id="main">
       <div class="hero">
         <section>
+          <div class="identity"><svg class="ecosystem-logo" role="img" aria-label="Node.js" width="267" height="80" viewBox="0 0 267 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <mask id="a" maskUnits="userSpaceOnUse" x="0" y="0" width="267" height="80" style="mask-type:luminance">
+    <path d="M267 0H0v79.378h267z" fill="#fff"/>
+  </mask>
+  <g mask="url(#a)">
+    <path d="M234.983 78.755a4 4 0 0 1-1.933-.51l-6.121-3.658c-.921-.51-.46-.695-.184-.787 1.242-.417 1.472-.51 2.761-1.25.138-.093.322-.047.46.046l4.694 2.825c.184.092.414.092.552 0l18.363-10.698c.183-.092.277-.277.277-.509V42.867c0-.232-.094-.417-.277-.51l-18.363-10.65c-.184-.093-.414-.093-.552 0l-18.362 10.65c-.184.093-.276.324-.276.51v21.347c0 .186.092.417.276.51l5.016 2.917c2.715 1.39 4.418-.232 4.418-1.852v-21.07c0-.278.23-.556.553-.556h2.347c.276 0 .552.232.552.556v21.07c0 3.658-1.979 5.788-5.431 5.788-1.058 0-1.886 0-4.234-1.157l-4.832-2.779a3.91 3.91 0 0 1-1.933-3.38V42.912c0-1.39.737-2.686 1.933-3.38l18.363-10.697c1.15-.649 2.715-.649 3.865 0l18.363 10.696a3.91 3.91 0 0 1 1.932 3.381V64.26c0 1.39-.736 2.686-1.932 3.381l-18.363 10.697c-.552.232-1.242.417-1.932.417" fill="#5FA04E"/>
+    <path d="M240.69 64.075c-8.055 0-9.712-3.705-9.712-6.854 0-.277.23-.555.552-.555h2.393c.277 0 .507.185.507.463.368 2.454 1.426 3.658 6.305 3.658 3.866 0 5.523-.88 5.523-2.963 0-1.204-.462-2.084-6.49-2.686-5.016-.51-8.146-1.621-8.146-5.65 0-3.75 3.13-5.974 8.376-5.974 5.892 0 8.791 2.038 9.159 6.484a.76.76 0 0 1-.137.416c-.094.093-.231.186-.371.186h-2.439a.54.54 0 0 1-.505-.417c-.553-2.547-1.98-3.38-5.753-3.38-4.234 0-4.74 1.481-4.74 2.593 0 1.342.598 1.76 6.305 2.5 5.66.741 8.33 1.806 8.33 5.788 0 4.076-3.36 6.391-9.157 6.391m26.51-22.413c0 1.945-1.612 3.566-3.546 3.566a3.556 3.556 0 0 1-3.543-3.566 3.556 3.556 0 0 1 3.543-3.565c1.888 0 3.546 1.574 3.546 3.565m-6.536 0c0 1.667 1.335 3.01 2.944 3.01 1.658 0 2.993-1.39 2.993-3.01 0-1.667-1.335-2.963-2.993-2.963a2.975 2.975 0 0 0-2.944 2.963m1.657-1.991h1.381c.46 0 1.381 0 1.381 1.065 0 .74-.462.88-.739.973.554.046.599.416.645.926.046.324.094.88.185 1.065h-.83c0-.186-.137-1.204-.137-1.25-.045-.232-.137-.325-.413-.325h-.691v1.62h-.782zm.736 1.76h.597c.508 0 .599-.37.599-.556 0-.556-.368-.556-.599-.556h-.642v1.112z" fill="#5FA04E"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M43.674 41.954c0-.834-.46-1.62-1.197-2.038L23.01 28.572c-.322-.185-.69-.278-1.058-.324h-.184c-.368 0-.736.139-1.059.324l-19.512 11.3A2.38 2.38 0 0 0 0 41.953l.046 30.378c0 .416.23.833.598 1.018.368.232.829.232 1.15 0l11.598-6.668a2.36 2.36 0 0 0 1.197-2.037V50.428c0-.833.46-1.62 1.196-2.037l4.924-2.871a2.2 2.2 0 0 1 1.197-.325c.414 0 .828.093 1.15.325l4.925 2.87a2.36 2.36 0 0 1 1.196 2.038v14.217c0 .833.46 1.62 1.197 2.037l11.505 6.668c.368.232.828.232 1.197 0 .368-.185.598-.602.598-1.018zM137.465.139c-.369-.185-.829-.185-1.151 0-.368.231-.598.602-.598 1.019v30.1a.89.89 0 0 1-.415.74.88.88 0 0 1-.828 0l-4.878-2.825a2.36 2.36 0 0 0-2.347 0L107.735 40.52a2.36 2.36 0 0 0-1.196 2.037V65.2c0 .834.46 1.621 1.196 2.038l19.513 11.345a2.36 2.36 0 0 0 2.347 0l19.513-11.345a2.36 2.36 0 0 0 1.196-2.038V8.752c0-.88-.46-1.667-1.196-2.084zm-1.795 57.606c0 .232-.092.417-.276.51l-6.674 3.89a.68.68 0 0 1-.598 0l-6.673-3.89c-.184-.093-.276-.325-.276-.51v-7.78c0-.231.092-.416.276-.509l6.673-3.89a.68.68 0 0 1 .598 0l6.674 3.89c.184.093.276.324.276.51zm66.728-7.965c.737-.417 1.151-1.204 1.151-2.038v-5.51c0-.834-.46-1.62-1.151-2.037l-19.375-11.3a2.36 2.36 0 0 0-2.347 0l-19.512 11.346a2.36 2.36 0 0 0-1.197 2.037v22.645c0 .833.46 1.62 1.197 2.037l19.374 11.114c.737.416 1.611.416 2.301 0l11.736-6.576c.368-.185.598-.602.598-1.019s-.23-.833-.598-1.018L174.97 58.115c-.368-.231-.598-.602-.598-1.018v-7.085c0-.417.23-.834.598-1.02l6.121-3.518a1.12 1.12 0 0 1 1.196 0l6.121 3.519c.368.231.598.602.598 1.019v5.557c0 .416.23.833.599 1.018.368.232.828.232 1.196 0z" fill="#333"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M181.551 48.716a.42.42 0 0 1 .461 0l3.727 2.176c.138.092.23.231.23.417v4.352a.49.49 0 0 1-.23.417l-3.727 2.177a.42.42 0 0 1-.461 0l-3.727-2.177a.49.49 0 0 1-.23-.417V51.31c0-.185.092-.325.23-.417z" fill="#5FA04E"/>
+    <g transform="translate(53.428, 28.628)">
+      <path fill="url(#b)" d="M22.873.417a2.36 2.36 0 0 0-2.348 0L1.151 11.669C.414 12.086 0 12.873 0 13.707v22.551c0 .834.46 1.621 1.15 2.038l19.375 11.253a2.36 2.36 0 0 0 2.348 0l19.374-11.253c.737-.417 1.15-1.204 1.15-2.038V13.707c0-.834-.46-1.62-1.15-2.038z"/>
+      <path fill="url(#c)" clip-path="url(#d)" d="m21.699-1.047 21.506 12.995L21.7 51.073.153 38.055z"/>
+      <path fill="url(#e)" clip-path="url(#d)" d="M21.699-1.047.153 11.948l21.546 39.125 21.506-13.018z"/>
+    </g>
+  </g>
+  <defs>
+    <linearGradient id="b" x1="30.33" y1="8.56" x2="14.9" y2="44.7" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3F8B3D"/>
+      <stop offset=".64" stop-color="#3F873F"/>
+      <stop offset=".93" stop-color="#3DA92E"/>
+      <stop offset="1" stop-color="#3DAE2B"/>
+    </linearGradient>
+    <linearGradient id="c" x1="18.8" y1="26.8" x2="68" y2=".4" gradientUnits="userSpaceOnUse">
+      <stop offset=".14" stop-color="#3F873F"/>
+      <stop offset=".4" stop-color="#52A044"/>
+      <stop offset=".71" stop-color="#64B749"/>
+      <stop offset=".91" stop-color="#6ABF4B"/>
+    </linearGradient>
+    <linearGradient id="e" x1=".25" y1="24.5" x2="44" y2="24.5" gradientUnits="userSpaceOnUse">
+      <stop offset=".09" stop-color="#6ABF4B"/>
+      <stop offset=".29" stop-color="#64B749"/>
+      <stop offset=".6" stop-color="#52A044"/>
+      <stop offset=".86" stop-color="#3F873F"/>
+    </linearGradient>
+    <clipPath id="d">
+      <path d="M22.873.417a2.36 2.36 0 0 0-2.348 0L1.151 11.669C.414 12.086 0 12.873 0 13.707v22.551c0 .834.46 1.621 1.15 2.038l19.375 11.253a2.36 2.36 0 0 0 2.348 0l19.374-11.253c.737-.417 1.15-1.204 1.15-2.038V13.707c0-.834-.46-1.62-1.15-2.038z"/>
+    </clipPath>
+  </defs>
+</svg><span>Single-turn AI API</span></div>
           <h1>A little context.<br>A <em>clearer</em> answer.</h1>
           <p class="intro">One question in. One response out. A focused starting point for an AI assistant API, built with plain Node.js.</p>
           <div class="actions">
-            <a class="primary" href="https://github.com/AzureAppService/app-service-builder-ai-agent#quickstart">Read setup instructions <span aria-hidden="true">&nearr;</span></a>
-            <a href="https://github.com/AzureAppService/app-service-builder-ai-agent">Explore the source</a>
+            <a class="primary" href="#customize">Configure your own app <span aria-hidden="true">&nearr;</span></a>
+            <a href="https://github.com/AzureAppService/app-service-builder-ai-agent">Sample README (upstream)</a>
           </div>
+          <div class="health"><button type="button" data-health-check data-health-path="/health">Check server liveness</button><p id="health-status" role="status" aria-live="polite">Checks liveness only, not authentication or model configuration.</p></div>
           <p class="note">Development &amp; testing sample.<br>Bring your own OpenAI or Azure OpenAI model.</p>
+          <section class="setup" aria-label="External model setup">
+            <p id="setup-status" role="status">Reading setup status; no model request is sent.</p>
+            <p>Builder's create-from-template experience does not connect external services. Finish setup in the same app.</p>
+            <a href="./README.md#setup">Create and connect your model — setup steps</a>
+            <button type="button" id="setup-check">Recheck setup status</button>
+          </section>
         </section>
         <section aria-label="Illustrative request contract">
           <div class="workspace">
@@ -225,13 +242,69 @@
         <div class="principle"><div><h2>Your model, explicitly</h2><p>Connect an authorized OpenAI model or Azure OpenAI deployment. Keys stay server-side.</p></div></div>
         <div class="principle"><div><h2>Boundaries built in</h2><p>Bearer authentication, request limits and a ten-second model deadline.</p></div></div>
       </section>
-      <details>
-        <summary>Before you connect a model</summary>
-        <p>This page is a static showcase. It does not collect credentials, send prompts or verify configuration. Real API requests require a separately configured provider and can incur model-service charges. Never include secrets or sensitive data in prompts. App Service Builder hosts the web application, not the model. This development sample is not a production identity or abuse-protection design.</p>
-        <a href="https://github.com/AzureAppService/app-service-builder-ai-agent#opt-in-real-provider-request">Read provider setup and safety notes</a>
+      <details id="customize">
+        <summary>Configure your own app before connecting a model</summary><p><code>server.mjs</code> reads <code>APP_API_TOKEN</code> and <code>MODEL_SERVICE</code>. OpenAI uses <code>OPENAI_API_KEY</code> and <code>OPENAI_MODEL</code>; Azure OpenAI uses <code>AZURE_OPENAI_ENDPOINT</code>, <code>AZURE_OPENAI_API_KEY</code> and <code>AZURE_OPENAI_DEPLOYMENT</code>. Optional <code>PUBLIC_ORIGIN</code> must be an exact HTTPS origin. Configure these in your own app, then restart locally or save and deploy a new version. This page cannot discover your fork or change deployment settings.</p>
+        <p>This public guide only checks server liveness. It does not collect credentials, send prompts or verify model configuration. Real API requests require a separately configured provider and can incur model-service charges. Never include secrets or sensitive data in prompts. App Service Builder hosts the web application, not the model. This development sample is not a production identity or abuse-protection design.</p>
+        <a href="./README.md#setup">Post-deployment model setup &amp; recovery</a>
       </details>
     </main>
+    <details class="brand-notices"><summary>Official logos &amp; trademark notices</summary><p><a href="https://nodejs.org/en/about/branding">Node.js brand source</a>. Logos identify their respective ecosystems; trademarks belong to their owners. The supplied App Service Builder mark identifies the hosting platform, not ecosystem endorsement. Local copies and provenance are in <code>assets/</code>.</p></details>
     <footer><span>App Service Builder / agent-web</span><span>Node.js &middot; Responses API &middot; No runtime dependencies</span></footer>
   </div>
+  <script>
+    const button = document.querySelector('[data-health-check]');
+    const status = document.querySelector('#health-status');
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      status.textContent = 'Checking server liveness...';
+      try {
+        const response = await fetch('/health', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if ((await response.text()).trim() !== 'OK') throw new Error('Unexpected health response');
+        status.textContent = 'Healthy: /health returned HTTP 200 and OK. Does not verify authentication, model configuration or AI responses.';
+      } catch {
+        status.textContent = 'Health check failed: connection or response unavailable. Retry the check.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+  <script>
+    document.querySelector('a[href="#customize"]').addEventListener('click', () => {
+      document.querySelector('#customize').open = true;
+    });
+  </script>
+  <script>
+    const messages = {
+      app_auth_not_configured: 'App authentication is missing. Configure a dedicated app token first.',
+      model_not_configured: 'Model configuration is missing. Create a model resource and save its server-side settings.',
+      model_configuration_invalid: 'The Azure model endpoint is invalid. Use the resource HTTPS origin, then save and deploy.',
+      not_checked: 'Configuration is present, but model access is not verified. Send one authorized API request after setup.',
+      response_verified: 'A real model response succeeded within the last five minutes. This is not a continuous connectivity guarantee.',
+      model_missing: 'The provider could not find the configured deployment/model. Check its exact name and endpoint.',
+      model_access_denied: 'The provider denied access. Check the dedicated key, expiry/revocation and service access rules.',
+      provider_limit: 'The provider reported a usage limit. Review quota and billing before an explicit retry.',
+      provider_unavailable: 'The model service is unavailable. Check its network/service status before retrying.',
+      request_timeout: 'The model request timed out. Check service reachability before retrying.',
+      model_response_failed: 'No usable model response was received. Review setup and retry explicitly.'
+    };
+    async function checkSetup() {
+      const control = document.querySelector('#setup-check');
+      const result = document.querySelector('#setup-status');
+      control.disabled = true;
+      try {
+        const response = await fetch('/api/setup', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        if (!response.ok) throw new Error();
+        const state = await response.json();
+        result.textContent = messages[state.code] || 'Setup status unavailable. Follow the setup steps.';
+      } catch {
+        result.textContent = 'Setup status could not be read. Check your app connection and follow the setup steps.';
+      } finally {
+        control.disabled = false;
+      }
+    }
+    document.querySelector('#setup-check').addEventListener('click', checkSetup);
+    checkSetup();
+  </script>
 </body>
 </html>

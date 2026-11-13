@@ -4,11 +4,48 @@ import { once } from 'node:events';
 import { createApp } from './server.mjs';
 import { request as httpRequest } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 
 test('README documentation links use the canonical docs host', () => {
   const readme = readFileSync(new URL('./README.md', import.meta.url), 'utf8');
   assert.match(readme, /https:\/\/builder\.appservice\.azure\.com\/docs\//);
   assert.doesNotMatch(readme, /https:\/\/builderapps\.azure\.com\/docs(?:\/|\b)/);
+});
+
+test('public liveness control checks only health and recovers after errors', async () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const script = html.match(/<script>\s*const button[\s\S]*?<\/script>/)[0]
+    .replace(/<\/?script>/g, '');
+  let click;
+  let response;
+  const button = { disabled: false, addEventListener: (_, listener) => { click = listener; } };
+  const status = { textContent: '' };
+  runInNewContext(script, {
+    document: { querySelector: selector => selector === '[data-health-check]' ? button : status },
+    AbortSignal,
+    fetch: async (path, options) => {
+      assert.equal(path, '/health');
+      assert.equal(options.cache, 'no-store');
+      assert.equal(button.disabled, true);
+      assert.equal(status.textContent, 'Checking server liveness...');
+      if (response instanceof Error) throw response;
+      return response;
+    },
+  });
+  for (const failed of [
+    new Response('Unavailable', { status: 503 }),
+    new Response('Not a health response'),
+    new Error('Connection failed'),
+  ]) {
+    response = failed;
+    await click();
+    assert.match(status.textContent, /^Health check failed:.*Retry the check\.$/);
+    assert.equal(button.disabled, false);
+    response = new Response('OK\n');
+    await click();
+    assert.match(status.textContent, /^Healthy:.*Does not verify authentication, model configuration or AI responses\.$/);
+    assert.equal(button.disabled, false);
+  }
 });
 
 const env = {
@@ -61,7 +98,11 @@ test('root serves the actual public HTML without provider calls and preserves AP
     assert.match(html, /not a live chat/);
     assert.match(html, /No generated reply is shown/);
     assert(!html.includes('<form'));
-    assert(!html.includes('fetch('));
+    assert.match(html, /fetch\('\/health',/);
+    assert.match(html, /data-health-path="\/health"/);
+    assert.match(html, /id="health-status" role="status"/);
+    assert.doesNotMatch(html, /fetch\(['"]\/agent/);
+    assert.match(response.headers.get('content-security-policy'), /connect-src 'self'/);
     assert(!html.includes(env.OPENAI_API_KEY));
     assert(!html.includes(env.APP_API_TOKEN));
     assert.doesNotMatch(html, /\/demo|sample identifier|<script[^>]+src=/);
@@ -167,12 +208,44 @@ test('Azure configuration fails closed and rejects untrusted endpoints and leake
     'https://sample-resource.openai.azure.com/openai/v1',
     'https://sample-resource.openai.azure.com?redirect=evil', 'https://sample-resource.openai.azure.com#fragment',
   ]) {
-    assert.throws(() => createApp({ env: { ...azureEnv, AZURE_OPENAI_ENDPOINT: endpoint } }), /Azure OpenAI resource origin/);
+    const request = await fixture(t, { env: { ...azureEnv, AZURE_OPENAI_ENDPOINT: endpoint },
+      fetchImpl: () => { throw new Error('must not call'); } });
+    assert.equal((await request('/health')).status, 200);
+    assert.equal((await request('/agent', post())).status, 503);
+    assert.equal((await request('/ready')).status, 503);
+    assert.equal((await (await request('/api/setup')).json()).code, 'model_configuration_invalid');
   }
   const request = await fixture(t, { env: azureEnv, fetchImpl: async () => completed(azureEnv.AZURE_OPENAI_API_KEY) });
   const response = await request('/agent', post());
   assert.equal(response.status, 502);
   assert.deepEqual(await response.json(), { error: 'model_response_failed' });
+});
+
+test('setup separates liveness/configuration from actual model success and sanitized failures', async (t) => {
+  let calls = 0;
+  let provider = completed();
+  const request = await fixture(t, { fetchImpl: async () => { calls++; return provider; } });
+  assert.equal((await request('/health')).status, 200);
+  assert.equal((await request('/ready')).status, 503);
+  assert.equal((await (await request('/api/setup')).json()).code, 'not_checked');
+  const document = await (await request('/README.md')).text();
+  assert.match(document, /id="setup"/);
+  assert.match(document, /already deployed/);
+  assert.equal(calls, 0);
+  assert.equal((await request('/agent', post())).status, 200);
+  assert.equal((await request('/ready')).status, 200);
+  for (const [http, code] of [[404, 'model_missing'], [401, 'model_access_denied'], [403, 'model_access_denied'],
+    [429, 'provider_limit'], [500, 'provider_unavailable']]) {
+    provider = new Response('private-canary provider diagnostics', { status: http });
+    assert.equal((await request('/agent', post())).status, 502);
+    const readiness = await request('/ready');
+    assert.equal(readiness.status, 503);
+    const state = await readiness.json();
+    assert.equal(state.code, code);
+    assert.equal(state.setupUrl, './README.md#setup');
+    assert.doesNotMatch(JSON.stringify(state), /private-canary|provider-test-secret|owner-selected-model/);
+  }
+  assert.equal(calls, 6, 'Setup/readiness reads never call the provider');
 });
 
 test('missing config returns unavailable, not fabricated success, and health does not call provider', async (t) => {

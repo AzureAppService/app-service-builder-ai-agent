@@ -2,10 +2,12 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { setupPage } from './setup-page.mjs';
 
 const MAX_BODY = 8192;
 const MAX_OUTPUT = 4000;
 const home = readFileSync(new URL('./index.html', import.meta.url));
+const readme = setupPage();
 
 /** Bound bytes before parsing, including chunked requests without Content-Length. */
 async function readBounded(stream, limit) {
@@ -39,14 +41,19 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
   const key = (azure ? env.AZURE_OPENAI_API_KEY : env.OPENAI_API_KEY) ?? '';
   const model = (azure ? env.AZURE_OPENAI_DEPLOYMENT : env.OPENAI_MODEL) ?? '';
   let modelUrl = azure ? null : 'https://api.openai.com/v1/responses';
+  let invalidEndpoint = false;
   if (azure && env.AZURE_OPENAI_ENDPOINT) {
-    const endpoint = new URL(env.AZURE_OPENAI_ENDPOINT);
-    if (endpoint.protocol !== 'https:' || endpoint.port || endpoint.username || endpoint.password
-      || endpoint.pathname !== '/' || endpoint.search || endpoint.hash
-      || !/^[a-z0-9][a-z0-9-]*\.openai\.azure\.com$/.test(endpoint.hostname)) {
-      throw new Error('AZURE_OPENAI_ENDPOINT must be an HTTPS Azure OpenAI resource origin');
+    try {
+      const endpoint = new URL(env.AZURE_OPENAI_ENDPOINT);
+      if (endpoint.protocol !== 'https:' || endpoint.port || endpoint.username || endpoint.password
+        || endpoint.pathname !== '/' || endpoint.search || endpoint.hash
+        || !/^[a-z0-9][a-z0-9-]*\.openai\.azure\.com$/.test(endpoint.hostname)) {
+        throw new Error('invalid_endpoint');
+      }
+      modelUrl = `${endpoint.origin}/openai/v1/responses`;
+    } catch {
+      invalidEndpoint = true;
     }
-    modelUrl = `${endpoint.origin}/openai/v1/responses`;
   }
   const origin = env.PUBLIC_ORIGIN ? new URL(env.PUBLIC_ORIGIN) : null;
   if (origin && (origin.protocol !== 'https:' || origin.origin !== env.PUBLIC_ORIGIN)) {
@@ -54,6 +61,16 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
   }
   const origins = new Set(['http://localhost:8080', 'http://127.0.0.1:8080', ...(origin ? [origin.origin] : [])]);
   let active = 0;
+  let outcome = 'not_checked';
+  let checkedAt = 0;
+  const setup = () => {
+    const code = token.length < 32 ? 'app_auth_not_configured'
+      : invalidEndpoint ? 'model_configuration_invalid'
+      : !['openai', 'azure-openai'].includes(env.MODEL_SERVICE) || !modelUrl || !key.trim() || !model.trim()
+        ? 'model_not_configured'
+        : Date.now() - checkedAt > 300_000 ? 'not_checked' : outcome;
+    return { code, setupUrl: './README.md#setup', lastCheckedAt: checkedAt || null };
+  };
   const send = (res, status, body) => {
     res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
@@ -66,13 +83,22 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end('OK\n');
     }
+    if (req.method === 'GET' && req.url === '/README.md') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" });
+      return res.end(readme);
+    }
+    if (req.method === 'GET' && (req.url === '/api/setup' || req.url === '/ready')) {
+      const state = setup();
+      return send(res, req.url === '/ready' && state.code !== 'response_verified' ? 503 : 200, state);
+    }
     if (req.method === 'GET' && req.url.split('?')[0] === '/') {
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       });
       return res.end(home);
     }
@@ -92,6 +118,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
     active++;
     const controller = new AbortController();
     let timer;
+    let failure = 'model_response_failed';
     const disconnected = () => { if (!res.writableEnded) controller.abort(); };
     res.on('close', disconnected);
     try {
@@ -116,7 +143,12 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
         }),
         signal: controller.signal, redirect: 'error',
       });
-      if (!response.ok) throw new Error('upstream_failed');
+      if (!response.ok) {
+        failure = response.status === 404 ? 'model_missing'
+          : [401, 403].includes(response.status) ? 'model_access_denied'
+            : response.status === 429 ? 'provider_limit' : 'provider_unavailable';
+        throw new Error('upstream_failed');
+      }
       // Node Readable.fromWeb permits the same byte cap for the provider response.
       const { Readable } = await import('node:stream');
       const result = JSON.parse(await readBounded(Readable.fromWeb(response.body), 65_536));
@@ -128,8 +160,12 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
       if (!text.trim() || text.length > MAX_OUTPUT || text.includes(key) || text.includes(token)) {
         throw new Error('invalid_output');
       }
+      outcome = 'response_verified';
+      checkedAt = Date.now();
       send(res, 200, { reply: text });
     } catch {
+      outcome = controller.signal.aborted ? 'request_timeout' : failure;
+      checkedAt = Date.now();
       if (!res.destroyed) send(res, controller.signal.aborted ? 504 : 502, {
         error: controller.signal.aborted ? 'request_timeout' : 'model_response_failed',
       });
