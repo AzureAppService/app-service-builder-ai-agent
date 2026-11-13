@@ -4,9 +4,12 @@ A standalone Node.js sample that hosts a bounded, single-turn AI assistant HTTP 
 
 ## Preview
 
-![AI assistant static showcase with a request example, setup links, and single-turn API boundaries](https://github.com/user-attachments/assets/41606df5-4329-4355-ba21-903e2861f8f1)
+![AI assistant root guide with an illustrative request, clearly labeled setup instructions, and single-turn API boundaries](docs/images/sample.png)
 
 The screenshot shows the static showcase served directly at `/`, not a live chat.
+It is a real local Microsoft Edge rendering, not an Azure deployment. **Read
+setup instructions** links to the upstream README; it does not create or modify
+your app. This public guide never collects credentials or sends model requests.
 
 **App Service Builder is in Private Preview.** This sample is for development and testing, not production, and has not been live-qualified against a preview deployment. You need approved preview access and a supported target supplied by your preview onboarding; no region or model availability is guaranteed. Start with the [Host an AI agent guide](https://builder.appservice.azure.com/docs/guides/host-ai-agent/).
 
