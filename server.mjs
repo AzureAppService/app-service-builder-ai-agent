@@ -35,10 +35,13 @@ const matches = (actual, expected) => {
  * restricted to Azure OpenAI resource origins, never caller-controlled URLs.
  * Tests substitute only the fetch boundary; runtime has no mock-success mode.
  */
-export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10_000 } = {}) {
+export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10_000, credential } = {}) {
   const token = env.APP_API_TOKEN ?? '';
   const azure = env.MODEL_SERVICE === 'azure-openai';
   const key = (azure ? env.AZURE_OPENAI_API_KEY : env.OPENAI_API_KEY) ?? '';
+  const authMode = env.AZURE_OPENAI_AUTH_MODE ?? 'managed-identity';
+  const managedIdentity = azure && authMode === 'managed-identity';
+  const invalidAuth = azure && (!['managed-identity', 'api-key'].includes(authMode) || (managedIdentity && !!key.trim()));
   const model = (azure ? env.AZURE_OPENAI_DEPLOYMENT : env.OPENAI_MODEL) ?? '';
   let modelUrl = azure ? null : 'https://api.openai.com/v1/responses';
   let invalidEndpoint = false;
@@ -46,7 +49,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
     try {
       const endpoint = new URL(env.AZURE_OPENAI_ENDPOINT);
       if (endpoint.protocol !== 'https:' || endpoint.port || endpoint.username || endpoint.password
-        || endpoint.pathname !== '/' || endpoint.search || endpoint.hash
+        || !['/', '/openai/v1/'].includes(endpoint.pathname) || endpoint.search || endpoint.hash
         || !/^[a-z0-9][a-z0-9-]*\.openai\.azure\.com$/.test(endpoint.hostname)) {
         throw new Error('invalid_endpoint');
       }
@@ -65,8 +68,8 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
   let checkedAt = 0;
   const setup = () => {
     const code = token.length < 32 ? 'app_auth_not_configured'
-      : invalidEndpoint ? 'model_configuration_invalid'
-      : !['openai', 'azure-openai'].includes(env.MODEL_SERVICE) || !modelUrl || !key.trim() || !model.trim()
+      : invalidEndpoint || invalidAuth ? 'model_configuration_invalid'
+      : !['openai', 'azure-openai'].includes(env.MODEL_SERVICE) || !modelUrl || (!managedIdentity && !key.trim()) || !model.trim()
         ? 'model_not_configured'
         : Date.now() - checkedAt > 300_000 ? 'not_checked' : outcome;
     return { code, setupUrl: './README.md#setup', lastCheckedAt: checkedAt || null };
@@ -108,7 +111,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
     if (!matches(req.headers.authorization, `Bearer ${token}`)) {
       return send(res, 401, { error: 'unauthorized' });
     }
-    if (!['openai', 'azure-openai'].includes(env.MODEL_SERVICE) || !modelUrl || !key.trim() || !model.trim()) {
+    if (invalidAuth || !['openai', 'azure-openai'].includes(env.MODEL_SERVICE) || !modelUrl || (!managedIdentity && !key.trim()) || !model.trim()) {
       return send(res, 503, { error: 'model_not_configured' });
     }
     if (req.headers['content-type']?.split(';')[0] !== 'application/json') {
@@ -119,6 +122,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
     const controller = new AbortController();
     let timer;
     let failure = 'model_response_failed';
+    let accessToken = '';
     const disconnected = () => { if (!res.writableEnded) controller.abort(); };
     res.on('close', disconnected);
     try {
@@ -133,9 +137,20 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
         return send(res, 400, { error: 'message_must_be_1_to_2000_characters' });
       }
       timer = setTimeout(() => controller.abort(), timeoutMs);
+      if (managedIdentity) {
+        failure = 'model_access_denied';
+        if (!credential) {
+          const { ManagedIdentityCredential } = await import('@azure/identity');
+          credential = new ManagedIdentityCredential(env.AZURE_CLIENT_ID ? { clientId: env.AZURE_CLIENT_ID } : {});
+        }
+        const acquired = await credential.getToken('https://cognitiveservices.azure.com/.default', { abortSignal: controller.signal });
+        if (!acquired?.token) throw new Error('identity_token_unavailable');
+        accessToken = acquired.token;
+        failure = 'model_response_failed';
+      }
       const response = await fetchImpl(modelUrl, {
         method: 'POST',
-        headers: { ...(azure ? { 'api-key': key } : { Authorization: `Bearer ${key}` }), 'Content-Type': 'application/json' },
+        headers: { ...(azure && !managedIdentity ? { 'api-key': key } : { Authorization: `Bearer ${managedIdentity ? accessToken : key}` }), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model, input: input.message,
           instructions: 'You are a concise development assistant. Answer in plain text. Do not request secrets.',
@@ -157,7 +172,8 @@ export function createApp({ env = process.env, fetchImpl = fetch, timeoutMs = 10
         .flatMap((item) => item.content ?? []).filter((item) => item.type === 'output_text');
       if (parts.some((item) => typeof item.text !== 'string')) throw new Error('invalid_output');
       const text = parts.map((item) => item.text).join('\n');
-      if (!text.trim() || text.length > MAX_OUTPUT || text.includes(key) || text.includes(token)) {
+      if (!text.trim() || text.length > MAX_OUTPUT || (key && text.includes(key)) ||
+        (accessToken && text.includes(accessToken)) || text.includes(token)) {
         throw new Error('invalid_output');
       }
       outcome = 'response_verified';

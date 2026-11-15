@@ -2,7 +2,7 @@
 
 A standalone Node.js 24 sample: each authenticated `POST /agent` sends one bounded text request to an external Responses-compatible model.
 
-**External-service setup is manual.** Builder's create-from-template experience does not create or connect a model resource. An already deployed app opens the setup guide while `/agent` fails closed until configured. Follow [setup](#setup) in that same app.
+**Connect an existing Azure OpenAI deployment through Builder Connections.** The template wizard does not provision a model. An already deployed app opens the setup guide while `/agent` fails closed until configured. Follow [setup](#setup) in that same app. Managed identity is the Azure default; model charges and permissions remain separate.
 
 **Private Preview, development/test only.** Approved Builder access and a supported target are required. Model availability and live connectivity are not qualified by this sample.
 
@@ -18,18 +18,20 @@ Use this journey **after deploying your fork's root `builder.yaml` to Builder**.
 
 1. **Create a dedicated Azure OpenAI resource.** In [Azure Portal](https://portal.azure.com), search **Azure OpenAI**, select **Create**, and choose your authorized subscription, a dedicated service resource group (**Create new** if needed), unique name, a model-supported region and **Standard S0**. Review network access and pricing, then **Review + create**. The human provisioner needs **Cognitive Services Contributor** at this dedicated group; after creation, key retrieval/model management can be scoped to this resource. **Cognitive Services OpenAI Contributor** can deploy models but cannot retrieve keys: have the resource's authorized key administrator supply the key securely. These are operator roles, not app credentials.
 2. **Deploy one model, not another web app.** Open the resource's **Model deployments > Manage Deployments**, then in Foundry (classic) **Deploy model > Deploy base model**. Choose a Responses-compatible text model such as `gpt-4.1-mini` (version `2025-04-14`) if available for your region/quota. Name the deployment, choose an available pay-as-you-go deployment type, reduce the token allowance to your test needs, review cost/data residency and **Deploy**. Record the exact deployment name. A resource alone is not a model deployment. Portal quota visibility may require **Cognitive Services Usages Reader** at subscription scope for the operator, never the app. See the [resource/deployment walkthrough](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/create-resource), [role permissions](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/role-based-access-control) and [Responses support](https://learn.microsoft.com/azure/foundry/openai/how-to/responses).
-3. **Connect server-side settings.** In the resource's **Keys and Endpoint**, copy the HTTPS resource origin and a key directly into your existing Builder app's **Variables > Add variables**:
+3. **Select managed identity in Connections.** Enable the existing app's system-assigned identity on **Identity**, save it and wait for its committed principal ID. Grant that principal **Cognitive Services OpenAI User** on the dedicated Azure OpenAI account, not Contributor. In **Connections**, add **Microsoft Foundry**, select the Azure OpenAI account, choose **Managed identity** and the app's system identity. Map endpoint to `AZURE_OPENAI_ENDPOINT` and model to `AZURE_OPENAI_DEPLOYMENT`. Use `https://<resource>.openai.azure.com/openai/v1/` and the exact deployment name. This profile supports Azure OpenAI accounts, not an arbitrary Foundry project or AI Gateway.
+
+   Keep only the app-specific settings in **Variables**:
 
    | Name | Value |
    |---|---|
    | `MODEL_SERVICE` | `azure-openai` |
-   | `AZURE_OPENAI_ENDPOINT` | `https://<resource>.openai.azure.com` (no path/query) |
-   | `AZURE_OPENAI_DEPLOYMENT` | Exact deployment name from step 2 |
-   | `AZURE_OPENAI_API_KEY` | Dedicated resource key |
+   | `AZURE_OPENAI_AUTH_MODE` | `managed-identity` (default) |
    | `APP_API_TOKEN` | Newly generated, separate random token of at least 32 characters |
 
-   Generate an app token in your approved secret manager; do not reuse an Azure/provider/account token. This sample uses API-key auth, **not managed identity**. Azure resource keys are resource-wide, not deployment-scoped: a dedicated resource is the isolation boundary. Do not grant the app Owner/Contributor or pretend RBAC scopes its key. Never place credentials in Git, browser code, prompts, screenshots or command history. Variables also reach builds: do not dump the environment or embed it in assets.
-4. **Save AND deploy a new version.** Choose **Save and deploy**, follow **Deployments** to success, and verify the active version is the newly built one. **Save only**, a restart or deploying a retained old version does not apply new variables. If deployment could not start after save, deploy current source rather than re-entering secrets. With an already installed, signed-in Builder CLI, the equivalent new build is:
+   Generate an app token in your approved secret manager; do not reuse an Azure/provider/account token. Leave `AZURE_CLIENT_ID` unset for this system-identity journey. The Azure Identity SDK acquires and refreshes Entra tokens server-side; Connections supplies runtime routing settings, not tokens. For an existing variables-based app, remove the endpoint/deployment variables and any `AZURE_OPENAI_API_KEY` without deploying, then save the complete connection. Exact duplicate variable names are rejected.
+
+   **API key** is an alternative Connections authentication mode, not the sample default. It requires destination local auth, a protected `apiKey` mapping to `AZURE_OPENAI_API_KEY`, no selected managed identity, and `AZURE_OPENAI_AUTH_MODE=api-key`. Enter its value only through the protected Portal field. Azure keys are resource-wide, not deployment-scoped. Protected-mode hosted qualification remains pending. Never place credentials in Git, browser code, prompts, screenshots or command history.
+4. **Save AND deploy a new version.** Connections saves pending configuration; explicitly deploy current desired source/configuration once everything is complete. Follow **Deployments** to success and verify the new active version. A restart or deploying a retained old version does not apply these changes. [connection.json](connection.json) is the complete managed-identity object: replace its placeholders, including the account resource ID. Installed Builder CLI 0.0.2 has no Connections command; check `builder app connections --help` before using the source command documented in the [Connections guide](https://builder.appservice.azure.com/docs/guides/connect-to-services/). Portal or the [ARM contract](https://builder.appservice.azure.com/docs/reference/arm-api/#service-connection-configuration) can save the same object. The deployment command remains:
 
    ```bash
    builder app deploy --name "<existing-app>" \
@@ -59,7 +61,7 @@ The runtime links to `./README.md#setup`, served by this app, rather than discov
 |---|---|
 | App auth/model configuration missing or invalid | Finish steps 2–4; correct the HTTPS resource origin. |
 | Model missing (`404` from provider) | Check the exact deployment name and resource; deploy the model if absent. |
-| Access denied (`401`/`403` from provider) | Check revoked/expired keys and service network/access policy. The app cannot reliably distinguish those causes. Rotate through secure settings, then deploy. |
+| Access denied (`401`/`403` from provider) | Check the selected identity, OpenAI User role and resource network rules. In explicit API-key mode, check destination local auth and the protected key instead. The app cannot reliably distinguish those causes. |
 | Limit, unreachable/timeout, unusable response | Review quota/billing, provider status and egress; retry one request explicitly after correction. No automatic retries. |
 | Configured or recently successful | Configuration is not connectivity; only an actual completed reply verifies that request. |
 

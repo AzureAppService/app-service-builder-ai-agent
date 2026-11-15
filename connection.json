@@ -1,0 +1,10 @@
+{
+  "name": "model",
+  "type": "foundryInference",
+  "resourceId": "/subscriptions/<subscription-id>/resourceGroups/<model-group>/providers/Microsoft.CognitiveServices/accounts/<account>",
+  "managedIdentity": { "type": "SystemAssigned" },
+  "settings": [
+    { "field": "endpoint", "value": "https://<account>.openai.azure.com/openai/v1/", "environmentVariable": "AZURE_OPENAI_ENDPOINT" },
+    { "field": "model", "value": "<deployment-name>", "environmentVariable": "AZURE_OPENAI_DEPLOYMENT" }
+  ]
+}
