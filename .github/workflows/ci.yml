@@ -26,3 +26,7 @@ jobs:
         run: node --check server.mjs && node --check server.test.mjs
       - name: Run provider-mocked HTTP tests
         run: npm test
+      - name: Compile ordered model and app infrastructure
+        run: |
+          az bicep build --file infra/model.bicep --outfile "$RUNNER_TEMP/model.json"
+          az bicep build --file infra/app.bicep --outfile "$RUNNER_TEMP/app.json"
