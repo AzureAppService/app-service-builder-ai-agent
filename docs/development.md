@@ -1,8 +1,9 @@
 # Local checks and HTTP contracts
 
-From this repository root, use Node.js 24. No third-party runtime dependencies are required. Local tests replace only the fetch boundary and never use live provider credentials.
+From this repository root, use Node.js 24. Azure managed identity uses the locked Azure Identity SDK. Local tests replace the credential/provider boundaries and never use live provider credentials.
 
 ```bash
+npm ci --ignore-scripts
 npm test
 env -u MODEL_SERVICE -u OPENAI_API_KEY -u OPENAI_MODEL \
   -u AZURE_OPENAI_ENDPOINT -u AZURE_OPENAI_API_KEY -u AZURE_OPENAI_DEPLOYMENT \
@@ -22,7 +23,7 @@ Inject provider keys and a separate random `APP_API_TOKEN` into the server envir
 | Contract | Behavior |
 |---|---|
 | OpenAI destination | Fixed `https://api.openai.com/v1/responses`, server-side bearer API key |
-| Azure destination | Resource origin plus `/openai/v1/responses`; `api-key` header, deployment name in `model`; no dated `api-version` query |
+| Azure destination | Resource origin or exact `/openai/v1/` base plus Responses; Entra bearer token by default, explicit `AZURE_OPENAI_AUTH_MODE=api-key` alternative; deployment name in `model`; no dated `api-version` query |
 | `PUBLIC_ORIGIN` | Optional exact HTTPS origin for supplied `Origin`; local localhost/127.0.0.1:8080 also allowed; no browser CORS grant |
 | App auth | Exact bearer comparison, token at least 32 characters; independent from provider and platform auth |
 | Input | JSON containing only a nonblank `message`, at most 2000 UTF-16 code units and 8192 body bytes |

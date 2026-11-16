@@ -3,5 +3,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": "24.x" },
-  "scripts": { "start": "node server.mjs", "test": "node --test" }
+  "scripts": { "start": "node server.mjs", "test": "node --test" },
+  "dependencies": { "@azure/identity": "4.14.1" }
 }

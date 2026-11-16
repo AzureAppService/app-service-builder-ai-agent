@@ -162,7 +162,7 @@ test('rejects unauthorized, cross-origin, oversized and invalid requests before 
 
 test('Azure OpenAI uses the configured resource and deployment with the bounded Responses contract', async (t) => {
   const azureEnv = {
-    APP_API_TOKEN: env.APP_API_TOKEN, MODEL_SERVICE: 'azure-openai',
+    APP_API_TOKEN: env.APP_API_TOKEN, MODEL_SERVICE: 'azure-openai', AZURE_OPENAI_AUTH_MODE: 'api-key',
     AZURE_OPENAI_ENDPOINT: 'https://sample-resource.openai.azure.com/',
     AZURE_OPENAI_API_KEY: 'azure-provider-test-secret', AZURE_OPENAI_DEPLOYMENT: 'sample-deployment',
   };
@@ -191,7 +191,7 @@ test('Azure OpenAI uses the configured resource and deployment with the bounded 
 
 test('Azure configuration fails closed and rejects untrusted endpoints and leaked credentials', async (t) => {
   const azureEnv = {
-    APP_API_TOKEN: env.APP_API_TOKEN, MODEL_SERVICE: 'azure-openai',
+    APP_API_TOKEN: env.APP_API_TOKEN, MODEL_SERVICE: 'azure-openai', AZURE_OPENAI_AUTH_MODE: 'api-key',
     AZURE_OPENAI_ENDPOINT: 'https://sample-resource.openai.azure.com',
     AZURE_OPENAI_API_KEY: 'azure-provider-test-secret', AZURE_OPENAI_DEPLOYMENT: 'sample-deployment',
   };
@@ -219,6 +219,56 @@ test('Azure configuration fails closed and rejects untrusted endpoints and leake
   const response = await request('/agent', post());
   assert.equal(response.status, 502);
   assert.deepEqual(await response.json(), { error: 'model_response_failed' });
+});
+
+test('Connections Azure model mappings use refreshed managed identity and keep probes provider-free', async (t) => {
+  let acquisitions = 0;
+  let calls = 0;
+  const azureEnv = {
+    APP_API_TOKEN: env.APP_API_TOKEN, MODEL_SERVICE: 'azure-openai',
+    AZURE_OPENAI_ENDPOINT: 'https://sample-resource.openai.azure.com/openai/v1/',
+    AZURE_OPENAI_DEPLOYMENT: 'sample-deployment',
+  };
+  const request = await fixture(t, { env: azureEnv, credential: {
+    async getToken(scope, options) {
+      assert.equal(scope, 'https://cognitiveservices.azure.com/.default');
+      assert(options.abortSignal instanceof AbortSignal);
+      return { token: `test-identity-token-${++acquisitions}` };
+    },
+  }, fetchImpl: async (url, options) => {
+    calls++;
+    assert.equal(url, 'https://sample-resource.openai.azure.com/openai/v1/responses');
+    assert.equal(options.headers.Authorization, `Bearer test-identity-token-${calls}`);
+    assert.equal(options.headers['api-key'], undefined);
+    assert.equal(options.redirect, 'error');
+    return completed();
+  } });
+  assert.equal((await request('/health')).status, 200);
+  assert.equal((await request('/ready')).status, 503);
+  assert.equal(acquisitions, 0);
+  assert.equal((await request('/agent', post())).status, 200);
+  assert.equal((await request('/agent', post())).status, 200);
+  assert.equal(acquisitions, 2);
+});
+
+test('managed identity failure, stale keys and token leakage fail closed without provider details', async (t) => {
+  const azureEnv = {
+    APP_API_TOKEN: env.APP_API_TOKEN, MODEL_SERVICE: 'azure-openai',
+    AZURE_OPENAI_ENDPOINT: 'https://sample-resource.openai.azure.com/',
+    AZURE_OPENAI_DEPLOYMENT: 'sample-deployment',
+  };
+  const failed = await fixture(t, { env: azureEnv, credential: {
+    async getToken() { throw new Error('private identity details'); },
+  }, fetchImpl: () => { throw new Error('must not call'); } });
+  assert.deepEqual(await (await failed('/agent', post())).json(), { error: 'model_response_failed' });
+  assert.equal((await (await failed('/api/setup')).json()).code, 'model_access_denied');
+  const stale = await fixture(t, { env: { ...azureEnv, AZURE_OPENAI_API_KEY: 'old-key' },
+    fetchImpl: () => { throw new Error('must not call'); } });
+  assert.equal((await stale('/agent', post())).status, 503);
+  const leaked = await fixture(t, { env: azureEnv, credential: {
+    async getToken() { return { token: 'private-identity-token' }; },
+  }, fetchImpl: async () => completed('private-identity-token') });
+  assert.equal((await leaked('/agent', post())).status, 502);
 });
 
 test('setup separates liveness/configuration from actual model success and sanitized failures', async (t) => {
